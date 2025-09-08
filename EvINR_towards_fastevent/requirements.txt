@@ -1,0 +1,6 @@
+numpy
+torch
+opencv-python
+tqdm
+bagpy
+cv_bridge

@@ -5,19 +5,11 @@ import lpips
 import numpy as np
 import torch
 import torch.nn.functional as F
-from datetime import datetime
 from EvINR_towards_fastevent.train import Eventprocessor
-from skimage import exposure
-from collections import OrderedDict
-import hdf5storage
 from PIL import Image
-from torchvision.models.vision_transformer import Encoder
 from utils import utils_model
 from utils import utils_logger
-from utils import utils_sisr as sr
 from utils import utils_image as util
-from utils.utils_deblur import MotionBlurOperator, GaussialBlurOperator
-from scipy import ndimage
 import random
 from skimage.metrics import structural_similarity as ssim
 from skimage.metrics import peak_signal_noise_ratio as psnr
@@ -36,8 +28,8 @@ def main():
     # ----------------------------------------
     # Preparation
     # ----------------------------------------
-    event_data_path         = '/content/DiffPIR/ECD/boxes_6dof/events.npy'# event path .npy
-    test_image_data_path       ='/content/DiffPIR/ECD/boxes_6dof/images.txt'
+    event_data_path         = '/content/Diff-EvINR/ECD/slider_depth/events.npy'# event path .npy
+    test_image_data_path       ='/content/Diff-EvINR/ECD/slider_depth/images.txt'
     noise_level_img         = 12.75/255.0           # set AWGN noise level for LR image, default: 0
     noise_level_model       = noise_level_img       # set noise level of model, default: 0
     model_name              = '256x256_diffusion_uncond'  # diffusion_ffhq_10m, 256x256_diffusion_uncond; set diffusino model
@@ -67,11 +59,7 @@ def main():
     zeta                    = 0.1  
     guidance_scale          = 1.0   
 
-    calc_LPIPS              = True
-    use_DIY_kernel          = True
-    blur_mode               = 'Gaussian'          # Gaussian; motion      
-    kernel_size             = 61
-    kernel_std              = 3.0 if blur_mode == 'Gaussian' else 0.5
+    calc_LPIPS              = True    
 
     sf                      = 1
     task_current            = 'deblur'          
@@ -135,9 +123,6 @@ def main():
     args = utils_model.create_argparser(model_config).parse_args([])
     model, diffusion = create_model_and_diffusion(
         **args_to_dict(args, model_and_diffusion_defaults().keys()))
-    # model.load_state_dict(
-    #     dist_util.load_state_dict(args.model_path, map_location="cpu")
-    # )
     model.load_state_dict(torch.load(args.model_path, map_location="cpu"))
     model.eval()
     if generate_mode != 'DPS_y0':
@@ -146,13 +131,6 @@ def main():
             v.requires_grad = False
     model = model.to(device)
 
-    logger.info('model_name:{}, image sigma:{:.3f}, model sigma:{:.3f}'.format(model_name, noise_level_img, noise_level_model))
-    logger.info('eta:{:.3f}, zeta:{:.3f}, lambda:{:.3f}, guidance_scale:{:.2f} '.format(eta, zeta, lambda_, guidance_scale))
-    logger.info('start step:{}, skip_type:{}, skip interval:{}, skipstep analytic steps:{}'.format(t_start, skip_type, skip, noise_model_t))
-    logger.info('use_DIY_kernel:{}, blur mode:{}'.format(use_DIY_kernel, blur_mode))
-    logger.info('Model path: {:s}'.format(model_path))
-    logger.info(L_path)
-    L_paths = util.get_image_paths(L_path)
     
     # 初始化 LPIPS 模型（使用 alexnet，或 vgg, squeeze）
     lpips_model = lpips.LPIPS(net='vgg').cuda()  # 需 GPU
@@ -170,73 +148,11 @@ def main():
         raise FileNotFoundError(f"Image not found: {path}")
       img = img.astype(np.float32) / 255.0  # 归一化到 [0, 1]
       return img  # shape: (H, W)，dtype: float32
-    def robust_min(img, p=5):
-      return np.percentile(img.ravel(), p)
-    def robust_max(img, p=95):
-      return np.percentile(img.ravel(), p)
-    def normalize(img, q_min=10, q_max=90):
-      """
-      robust min/max normalization if specified with norm arguments
-      q_min and q_max are the min and max quantiles for the normalization
-      :param img: Input image to be normalized
-      :param q_min: min quantile for the robust normalization
-      :param q_max: max quantile for the robust normalization
-      :return: Normalized image
-      """
-      norm_min = robust_min(img, q_min)
-      norm_max = robust_max(img, q_max)
-      normalized = (img - norm_min) / (norm_max - norm_min)
-      return normalized
-    def post_process_normalization(img, norm):
-      """
-      Post-process an image with standard or robust normalization.
-      """
-      if norm == 'robust':
-          img = normalize(img, 1, 99)
-      elif norm == 'standard':
-          img = normalize(img, 0, 100)
-      elif norm == 'none':
-          pass
-      elif norm == 'exprobust':
-          img = np.exp(img)
-          img = normalize(img, 1, 99)
-      else:
-          raise ValueError(f"Unrecognized normalization argument: {norm}")
-      return img
 
-    
-    def histogram_equalization(img,hist_eq):
-        if hist_eq == 'global':
-            from skimage.util import img_as_ubyte, img_as_float32
-            from skimage import exposure
-            img = exposure.equalize_hist(img)
-            img = img_as_float32(img)
-        elif hist_eq == 'local':
-            from skimage.morphology import disk
-            from skimage.filters import rank
-            from skimage.util import img_as_ubyte, img_as_float32
-            footprint = disk(55)
-            img = img_as_ubyte(img)
-            img = rank.equalize(img, footprint=footprint)
-            img = img_as_float32(img)
-        elif hist_eq == 'clahe':
-            from skimage.util import img_as_ubyte, img_as_float32
-            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-            img = img_as_ubyte(img)
-            img = clahe.apply(img)
-            img = img_as_float32(img)
-        elif hist_eq == 'none':
-            pass
-        else:
-            raise ValueError(f"Unrecognized histogram equalization argument: {self.hist_eq}")
-        return img
+
+
     def test_rho(lambda_=lambda_, zeta=zeta, model_output_type=model_output_type,start = 0,end = 1,Accumulate = 0,train_resoluton = 10):
         logger.info('eta:{:.3f}, zeta:{:.3f}, lambda:{:.3f}, guidance_scale:{:.2f}'.format(eta, zeta, lambda_, guidance_scale))
-        test_results = OrderedDict()
-        test_results['psnr'] = []
-        if calc_LPIPS:
-            test_results['lpips'] = []
-        #np.save(os.path.join(E_path, 'motion_kernel.npy'), k)
         
         model_out_type = model_output_type
 
@@ -331,7 +247,7 @@ def main():
                                     #img = exposure.equalize_adapthist(img)
                                     img = (img * 255).astype(np.uint8)
                                     img_pil = Image.fromarray(np.transpose(img, (1, 2, 0)))  # 转成HWC格式的numpy
-                                    img_pil.save(os.path.join('/content/DiffPIR/results2', f'frame_{int(j):04d}.png'))                              # 文件夹路径
+                                    img_pil.save(os.path.join('/content/Diff-EvINR/results2', f'frame_{int(j):04d}.png'))                              # 文件夹路径
 
                                 if seq[i]>800:
                                   term_value = (seq[i]-800)*0.495+1
@@ -355,11 +271,11 @@ def main():
                                       
                                       img_pil = Image.fromarray(img, mode='L')  # 转成HWC格式的numpy
 
-                                      img_pil.save(os.path.join('/content/DiffPIR/results3', f'frame_{int(f+Accumulate):04}.png'))
+                                      img_pil.save(os.path.join('/content/Diff-EvINR/results3', f'frame_{int(f+Accumulate):04}.png'))
                                       accumulate = Accumulate + x0_2p.size(0)
 
-                                  gt_dir = '/content/DiffPIR/ECD/boxes_6dof/images/'         # ground-truth
-                                  pred_dir = '/content/DiffPIR/results3/'     # predictions
+                                  gt_dir = '/content/Diff-EvINR/ECD/slider_depth/images/'         # ground-truth
+                                  pred_dir = '/content/Diff-EvINR/results3/'     # predictions
 
                                   # 获取图像文件名（假设两边同名）
                                   filenames = sorted(os.listdir(pred_dir))
@@ -401,11 +317,11 @@ def main():
                                       img =img[0,0:180,0:240]
                                       img = (img * 255).astype(np.uint8)  # 转成0~255的byte tensor
                                       img_pil = Image.fromarray(img, mode='L')  # 转成HWC格式的numpy
-                                      img_pil.save(os.path.join('/content/DiffPIR/results4', f'frame_{int(f+Accumulate):04d}.png'))
+                                      img_pil.save(os.path.join('/content/Diff-EvINR/results4', f'frame_{int(f+Accumulate):04d}.png'))
                                       accumulate = Accumulate + x0_2p.size(0)
 
-                                  gt_dir = '/content/DiffPIR/ECD/boxes_6dof/images/'         # ground-truth
-                                  pred_dir = '/content/DiffPIR/results4/'     # predictions
+                                  gt_dir = '/content/Diff-EvINR/ECD/slider_depth/images/'         # ground-truth
+                                  pred_dir = '/content/Diff-EvINR/results4/'     # predictions
 
                                   # 获取图像文件名（假设两边同名）
                                   filenames = sorted(os.listdir(pred_dir))
@@ -472,19 +388,6 @@ def main():
                     x = sqrt_alpha_effective * x + torch.sqrt(sqrt_1m_alphas_cumprod[t_i]**2 - \
                             sqrt_alpha_effective**2 * sqrt_1m_alphas_cumprod[t_im1]**2) * torch.randn_like(x)
 
-            # save the process
-            x_0 = (x/2+0.5)
-            if save_progressive and (seq[i] in progress_seq):
-                x_show = x_0.clone().detach().cpu().numpy()       #[0,1]
-                x_show = np.squeeze(x_show)
-                if x_show.ndim == 3:
-                    x_show = np.transpose(x_show, (1, 2, 0))
-                progress_img.append(x_show)
-                if log_process:
-                    logger.info('{:>4d}, steps: {:>4d}, np.max(x_show): {:.4f}, np.min(x_show): {:.4f}'.format(seq[i], t_i, np.max(x_show), np.min(x_show)))
-                
-                if show_img:
-                    util.imshow(x_show)
         return accumulate
         # --------------------------------
         # Average PSNR and LPIPS
@@ -492,9 +395,9 @@ def main():
     
     # experiments
     lambdas = [lambda_*i for i in range(7,8)]
-    split_number =43
-    t_in = 1468941032.25
-    t_out = 1468941032.25+23.12 #1468941059.9 
+    split_number =30
+    t_in = 0
+    t_out = 3.4 #1468941059.9 
     T_start = []
     T_end = []
     t_diff = t_out-t_in
@@ -510,9 +413,9 @@ def main():
                 t_begin = T_start[k]
                 t_end =  T_end[k]   
                 if k <=1:   
-                  accumulate = test_rho(lambda_, zeta=zeta_i, model_output_type=model_output_type,start = t_begin,end  = t_end,Accumulate = accumulate, train_resoluton = 6)
+                  accumulate = test_rho(lambda_, zeta=zeta_i, model_output_type=model_output_type,start = t_begin,end  = t_end,Accumulate = accumulate, train_resoluton = 15)
                 else:
-                  accumulate = test_rho(lambda_, zeta=zeta_i, model_output_type=model_output_type,start = t_begin,end  = t_end,Accumulate = accumulate, train_resoluton = 45)
+                  accumulate = test_rho(lambda_, zeta=zeta_i, model_output_type=model_output_type,start = t_begin,end  = t_end,Accumulate = accumulate, train_resoluton = 15)
 
 
 if __name__ == '__main__':

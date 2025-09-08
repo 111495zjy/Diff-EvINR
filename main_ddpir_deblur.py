@@ -30,8 +30,6 @@ def main():
     # ----------------------------------------
     event_data_path         = '/content/Diff-EvINR/ECD/slider_depth/events.npy'# event path .npy
     test_image_data_path       ='/content/Diff-EvINR/ECD/slider_depth/images.txt'
-    noise_level_img         = 12.75/255.0           # set AWGN noise level for LR image, default: 0
-    noise_level_model       = noise_level_img       # set noise level of model, default: 0
     model_name              = '256x256_diffusion_uncond'  # diffusion_ffhq_10m, 256x256_diffusion_uncond; set diffusino model
     testset_name            = 'demo_test'            # set testing set,  'imagenet_val' | 'ffhq_val'
     num_train_timesteps     = 1000
@@ -45,8 +43,6 @@ def main():
     save_LEH                = False             # save zoomed LR, E and H images
     save_progressive        = False             # save generation process
     border                  = 0
-	
-    sigma                   = max(0.001,noise_level_img)  # noise level associated with condition y
     lambda_                 = 1.0               # key parameter lambda
     sub_1_analytic          = True              # use analytical solution
     
@@ -58,17 +54,10 @@ def main():
     eta                     = 0.0               # eta for ddim sampling
     zeta                    = 0.1  
     guidance_scale          = 1.0   
-
-    calc_LPIPS              = True    
-
-    sf                      = 1
-    task_current            = 'deblur'          
+         
     n_channels              = 3                 # fixed
     cwd                     = ''  
     model_zoo               = os.path.join(cwd, 'model_zoo')    # fixed
-    testsets                = os.path.join(cwd, 'testsets')     # fixed
-    results                 = os.path.join(cwd, 'results')      # fixed
-    result_name             = f'{testset_name}_{task_current}_{generate_mode}_{model_name}_sigma{noise_level_img}_NFE{iter_num}_eta{eta}_zeta{zeta}_lambda{lambda_}_blurmode{blur_mode}'
     model_path              = os.path.join(model_zoo, model_name+'.pt')
     device                  = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     torch.cuda.empty_cache()
@@ -84,7 +73,6 @@ def main():
     sqrt_1m_alphas_cumprod  = torch.sqrt(1. - alphas_cumprod)
     reduced_alpha_cumprod   = torch.div(sqrt_1m_alphas_cumprod, sqrt_alphas_cumprod)        # equivalent noise sigma on image
 
-    noise_model_t           = utils_model.find_nearest(reduced_alpha_cumprod, 2 * noise_level_model)
     noise_model_t           = 0
     
     noise_inti_img          = 50 / 255
@@ -96,13 +84,6 @@ def main():
     # L_path, E_path, H_path
     # ----------------------------------------
 
-    L_path = os.path.join(testsets, testset_name) # L_path, for Low-quality images
-    E_path = os.path.join(results, result_name)   # E_path, for Estimated images
-    util.mkdir(E_path)
-
-    logger_name = result_name
-    utils_logger.logger_info(logger_name, log_path=os.path.join(E_path, logger_name+'.log'))
-    logger = logging.getLogger(logger_name)
 
     # ----------------------------------------
     # load model
@@ -152,7 +133,6 @@ def main():
 
 
     def test_rho(lambda_=lambda_, zeta=zeta, model_output_type=model_output_type,start = 0,end = 1,Accumulate = 0,train_resoluton = 10):
-        logger.info('eta:{:.3f}, zeta:{:.3f}, lambda:{:.3f}, guidance_scale:{:.2f}'.format(eta, zeta, lambda_, guidance_scale))
         
         model_out_type = model_output_type
 
@@ -162,21 +142,13 @@ def main():
 
 
         # --------------------------------
-        # (2) get rhos and sigmas
+        # (2) get sigmas
         # --------------------------------
 
         sigmas = []
-        sigma_ks = []
-        rhos = []
         for i in range(num_train_timesteps):
             sigmas.append(reduced_alpha_cumprod[num_train_timesteps-1-i])
-            if model_out_type == 'pred_xstart' and generate_mode == 'DiffPIR':
-                sigma_ks.append((sqrt_1m_alphas_cumprod[i]/sqrt_alphas_cumprod[i]))
-            #elif model_out_type == 'pred_x_prev':
-            else:
-                sigma_ks.append(torch.sqrt(betas[i]/alphas[i]))
-            rhos.append(lambda_*(sigma**2)/(sigma_ks[i]**2))    
-        rhos, sigmas, sigma_ks = torch.tensor(rhos).to(device), torch.tensor(sigmas).to(device), torch.tensor(sigma_ks).to(device)
+        sigmas= torch.tensor(sigmas).to(device)
         
         # --------------------------------
         # (3) initialize x, and pre-calculation
@@ -395,7 +367,7 @@ def main():
     
     # experiments
     lambdas = [lambda_*i for i in range(7,8)]
-    split_number =30
+    split_number =22
     t_in = 0
     t_out = 3.4 #1468941059.9 
     T_start = []

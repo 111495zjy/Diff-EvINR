@@ -1,7 +1,7 @@
 import numpy as np
 
-txt_file_path = '/content/DiffPIR/ECD/shapes_6dof/events.txt'
-npy_file_path = '/content/DiffPIR/ECD/shapes_6dof/events.npy'
+txt_file_path = '/content/Diff-EvINR/ECD/slider_depth/events.txt'
+npy_file_path = '/content/Diff-EvINR/ECD/slider_depth/events.npy'
 
 H = 480  # 这里假设图像高度为 480，请根据实际情况修改
 

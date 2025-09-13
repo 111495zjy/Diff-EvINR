@@ -39,8 +39,7 @@ unzip ~/ECD.zip -d ~/Diff-EvINR/
 cd ~/Diff-EvINR/EvINR_towards_fastevent
 python txt_npy.py # you need to modify its content about the dataset path
  ```
-You can also use this link for the dataset:https://drive.google.com/drive/folders/1BQCoPXlr65XpYwAW7i2SpcnFNi9Od2ij?usp=drive_link. Make sure the datasets are included in the file Diff-EvINR. 
-5. Run model
+You can also use this link for the dataset:https://drive.google.com/drive/folders/1BQCoPXlr65XpYwAW7i2SpcnFNi9Od2ij?usp=drive_link. Make sure the datasets are included in the file Diff-EvINR. Then, run the model:
  ```bash
 %cd /content/Diff-EvINR
 python main_ddpir_deblur.py

@@ -20,13 +20,13 @@ Run the following commands in **Google Colab** (or local environment):
 
 ```bash
 # 1. Clone repository
-!git clone https://github.com/111495zjy/Diff-EvINR.git
-%cd /content/Diff-EvINR
+git clone https://github.com/111495zjy/Diff-EvINR.git
+cd /content/Diff-EvINR
 
 # 2. Install dependencies
-!pip install -r requirements.txt
-!pip install lpips
-!pip install scikit-image
+pip install -r requirements.txt
+pip install lpips
+pip install scikit-image
 
-# 3. Download pretrained models and additional resources
-!bash download.sh
+# 3. Download pretrained models
+bash download.sh

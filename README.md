@@ -21,7 +21,7 @@ Run the following commands in **Google Colab** (or local environment):
 ```bash
 # 1. Clone repository
 git clone https://github.com/111495zjy/Diff-EvINR.git
-cd /content/Diff-EvINR
+cd ~/Diff-EvINR
 
 # 2. Install dependencies
 pip install -r requirements.txt
@@ -30,3 +30,10 @@ pip install scikit-image
 
 # 3. Download pretrained models
 bash download.sh
+# 4. Download dataset
+unzip ~/ECD.zip -d ~/Diff-EvINR/
+cd ~/Diff-EvINR/EvINR_towards_fastevent
+python txt_npy.py
+# 5. Run model
+%cd /content/Diff-EvINR
+python main_ddpir_deblur.py

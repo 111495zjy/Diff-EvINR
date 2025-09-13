@@ -2,6 +2,10 @@
 
 This repository contains the implementation of **Diff-EvINR**, a method for reconstructing high-quality videos from event data by leveraging diffusion models and implicit neural representations (INRs).  
 Our approach bridges **physics-based event alignment** with **data-driven generative priors**, leading to robust and detailed reconstructions.
+
+
+## ▶️ Video examples
+
 | ![Sequence1](https://github.com/111495zjy/Video_examples_of_Diff-EvINR/raw/main/sequence1.gif) | ![Sequence2](https://github.com/111495zjy/Video_examples_of_Diff-EvINR/raw/main/sequence2.gif) |
 |:--:|:--:|
 |Sequence 1|Sequence 2|

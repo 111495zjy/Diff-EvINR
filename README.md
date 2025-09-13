@@ -5,24 +5,31 @@ Our approach bridges **physics-based event alignment** with **data-driven genera
 
 ## 📦 Implementation
 
-Run the following commands:
+1. Clone repository:
 
 ```bash
-# 1. Clone repository
 git clone https://github.com/111495zjy/Diff-EvINR.git
 cd ~/Diff-EvINR
-
-# 2. Install dependencies
+```
+2. Install dependencies
+ ```bash
 pip install -r requirements.txt
 pip install lpips
 pip install scikit-image
+ ```
 
-# 3. Download pretrained models
+3. Download pretrained models
+ ```bash
 bash download.sh
-# 4. Download dataset
+ ```
+4. Download dataset. Please download the ECD.zip in the following link first: https://drive.google.com/drive/folders/1BQCoPXlr65XpYwAW7i2SpcnFNi9Od2ij?usp=drive_link
+ ```bash   
 unzip ~/ECD.zip -d ~/Diff-EvINR/
 cd ~/Diff-EvINR/EvINR_towards_fastevent
 python txt_npy.py
-# 5. Run model
+ ```
+5. Run model
+ ```bash
 %cd /content/Diff-EvINR
 python main_ddpir_deblur.py
+ ```

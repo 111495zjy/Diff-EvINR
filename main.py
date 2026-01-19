@@ -113,7 +113,7 @@ def main():
     model = model.to(device)
 
     
-    # 初始化 LPIPS 模型（使用 alexnet，或 vgg, squeeze）
+    # initialize LPIPS model（using vgg）
     lpips_model = lpips.LPIPS(net='vgg').cuda()  # 需 GPU
     def load_img(path):
       img = Image.open(path).convert('RGB')
@@ -124,10 +124,10 @@ def main():
       img = torch.from_numpy(img).permute(2, 0, 1).unsqueeze(0)  # [1, 3, H, W]
       return (img * 2 - 1).cuda()
     def load_img2(path):
-      img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)  # 读取灰度图，shape: (H, W)，dtype: uint8
+      img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)  # read greyscale img，shape: (H, W)，dtype: uint8
       if img is None:
         raise FileNotFoundError(f"Image not found: {path}")
-      img = img.astype(np.float32) / 255.0  # 归一化到 [0, 1]
+      img = img.astype(np.float32) / 255.0  # normalization to  [0, 1]
       return img  # shape: (H, W)，dtype: float32
 
 
@@ -218,8 +218,8 @@ def main():
                                     img = x0_p[j].cpu().numpy()  # [3,256,256]
                                     #img = exposure.equalize_adapthist(img)
                                     img = (img * 255).astype(np.uint8)
-                                    img_pil = Image.fromarray(np.transpose(img, (1, 2, 0)))  # 转成HWC格式的numpy
-                                    img_pil.save(os.path.join('/content/Diff-EvINR/results2', f'frame_{int(j):04d}.png'))                              # 文件夹路径
+                                    img_pil = Image.fromarray(np.transpose(img, (1, 2, 0))) 
+                                    img_pil.save(os.path.join('/content/Diff-EvINR/results2', f'frame_{int(j):04d}.png'))      
 
                                 if seq[i]>800:
                                   term_value = (seq[i]-800)*0.495+1
@@ -239,9 +239,9 @@ def main():
                                       img =img[0,0:180,0:240]
                                       #img = post_process_normalization(img , "robust")
                                       #img = histogram_equalization(img,"local")
-                                      img = (img * 255).astype(np.uint8)  # 转成0~255的byte tensor
+                                      img = (img * 255).astype(np.uint8) 
                                       
-                                      img_pil = Image.fromarray(img, mode='L')  # 转成HWC格式的numpy
+                                      img_pil = Image.fromarray(img, mode='L') 
 
                                       img_pil.save(os.path.join('/content/Diff-EvINR/results3', f'frame_{int(f+Accumulate):04}.png'))
                                       accumulate = Accumulate + x0_2p.size(0)
@@ -249,7 +249,7 @@ def main():
                                   gt_dir = '/content/Diff-EvINR/ECD/slider_depth/images/'         # ground-truth
                                   pred_dir = '/content/Diff-EvINR/results3/'     # predictions
 
-                                  # 获取图像文件名（假设两边同名）
+                                  # get filename of img
                                   filenames = sorted(os.listdir(pred_dir))
 
                                   ssim_scores, mse_scores, lpips_scores,ssim_scores2,mse_scores2= [], [], [],[],[]
@@ -263,7 +263,7 @@ def main():
                                       # MSE
                                       mse_val2 = mse(gt2, pred2)
                                       mse_scores2.append(mse_val2)
-                                      # SSIM (多通道)
+                                      # SSIM (3 channels)
                                       ssim_val2 = ssim(gt2, pred2, gaussian_weights=True, sigma=1.5, use_sample_covariance=False, data_range=1.0)
                                       ssim_scores2.append(ssim_val2)                                      
 
@@ -287,15 +287,15 @@ def main():
                                     #if Accumulate>=40:
                                       img = x0_2p[f].cpu().numpy()  # [3,256,256]
                                       img =img[0,0:180,0:240]
-                                      img = (img * 255).astype(np.uint8)  # 转成0~255的byte tensor
-                                      img_pil = Image.fromarray(img, mode='L')  # 转成HWC格式的numpy
+                                      img = (img * 255).astype(np.uint8)  
+                                      img_pil = Image.fromarray(img, mode='L')  
                                       img_pil.save(os.path.join('/content/Diff-EvINR/results4', f'frame_{int(f+Accumulate):04d}.png'))
                                       accumulate = Accumulate + x0_2p.size(0)
 
                                   gt_dir = '/content/Diff-EvINR/ECD/slider_depth/images/'         # ground-truth
                                   pred_dir = '/content/Diff-EvINR/results4/'     # predictions
 
-                                  # 获取图像文件名（假设两边同名）
+                                  # get filenames of img
                                   filenames = sorted(os.listdir(pred_dir))
 
                                   ssim_scores, mse_scores, lpips_scores,ssim_scores2,mse_scores2= [], [], [],[],[]
@@ -311,7 +311,7 @@ def main():
                                       mse_scores.append(mse_val)
                                       mse_val2 = mse(gt2, pred2)
                                       mse_scores2.append(mse_val2)
-                                      # SSIM (多通道)
+                                      # SSIM (3 channels)
                                       ssim_val = ssim(gt, pred, data_range=1.0, channel_axis=2)
                                       ssim_scores.append(ssim_val)
                                       ssim_val2 = ssim(gt2, pred2, multichannel=False, data_range=1.0)
@@ -324,11 +324,11 @@ def main():
                                           lpips_val = lpips_model(gt_tensor, pred_tensor).item()
                                       lpips_scores.append(lpips_val)
 
-                                  # 输出平均指标
+                                  # Output metrics
                                   print(f"Average Orignal MSE:  {np.mean(mse_scores):.3f}")
                                   print(f"Average Orignal SSIM:  {np.mean(ssim_scores):.4f}")
                                   print(f"Average Orignal LPIPS: {np.mean(lpips_scores):.4f}")  
-                                  # 输出平均指标
+                                  # Output metrics
                                   print(f"Average Orignal MSE_single_channel:  {np.mean(mse_scores2):.3f}")
                                   print(f"Average Orignal SSIM_single_channel:  {np.mean(ssim_scores2):.4f}")   
                                 else:

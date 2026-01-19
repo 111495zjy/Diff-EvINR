@@ -4,8 +4,8 @@ import torch.nn.functional as F
 import numpy as np
 def epsilon_insensitive_loss(pred, target, epsilon):
     diff = torch.abs(pred - target)
-    loss = torch.clamp(diff - epsilon, min=0)  # ε 截断
-    loss = loss ** 2                           # 变成 L2
+    loss = torch.clamp(diff - epsilon, min=0)  
+    loss = loss ** 2                           # L2
     return loss.mean()   
 class EvINRModel(nn.Module):
     def __init__(self, n_layers=3, d_hidden=512, d_neck=256, H=260, W=346, recon_colors=True):

@@ -276,7 +276,6 @@ def main():
 
 
                                   print(f"Average LPIPS: {np.mean(lpips_scores):.4f}")  
-                                  # 输出平均指标
                                   print(f"Average MSE_single_channel:  {np.mean(mse_scores2):.3f}")
                                   print(f"Average SSIM_single_channel:  {np.mean(ssim_scores2):.4f}")
 
